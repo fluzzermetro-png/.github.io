@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StradeИИ - ChatGPT</title>
+    <title>StradeИИ - Нейросеть</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; background: #0a0a1a; }
@@ -311,7 +311,7 @@
         </div>
 
         <div class="header">
-            <h1>🧠 StradeИИ <span class="free-badge">CHATGPT</span></h1>
+            <h1>🧠 StradeИИ <span class="free-badge">БЕСПЛАТНО</span></h1>
             <div class="subtitle">✦ НАСТОЯЩАЯ НЕЙРОСЕТЬ ✦</div>
         </div>
 
@@ -374,10 +374,42 @@
             ];
 
             // =============================================
-            // 🤖 ТВОЙ OPENAI API КЛЮЧ (уже вставлен!)
+            // 🌐 МНОГО ПРОКСИ (ВСЕ ВОЗМОЖНЫЕ ВАРИАНТЫ)
             // =============================================
-            const OPENAI_API_KEY = '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';
-            const API_URL = 'https://api.openai.com/v1/chat/completions';
+            const PROXIES = [
+                // Llama API
+                {
+                    url: 'https://api.llama-api.com/chat/completions',
+                    model: 'llama-3.1-8b',
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                // Другие бесплатные прокси
+                {
+                    url: 'https://api.g4f.icu/v1/chat/completions',
+                    model: 'gpt-3.5-turbo',
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                {
+                    url: 'https://chatapi.one/v1/chat/completions',
+                    model: 'gpt-3.5-turbo',
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                {
+                    url: 'https://api.aicode.one/v1/chat/completions',
+                    model: 'gpt-3.5-turbo',
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                {
+                    url: 'https://gpt-api.live/v1/chat/completions',
+                    model: 'gpt-3.5-turbo',
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                {
+                    url: 'https://api.chatanywhere.tech/v1/chat/completions',
+                    model: 'gpt-3.5-turbo',
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            ];
 
             // =============================================
             // ОСТАЛЬНОЙ КОД
@@ -448,7 +480,7 @@
                     keyStatus.className = 'key-status active';
                     
                     clearMessages();
-                    addMessage('🔓 <strong>StradeИИ разблокирован!</strong> 🎉<br><span style="font-size:13px; opacity:0.8;">Привет! Я настоящая нейросеть на базе ChatGPT. Спрашивай что угодно! 🤖</span>', 'other');
+                    addMessage('🔓 <strong>StradeИИ разблокирован!</strong> 🎉<br><span style="font-size:13px; opacity:0.8;">Привет! Я нейросеть. Спрашивай что угодно! 🤖</span>', 'other');
                     
                     errorMsg.textContent = '';
                     keyInput.value = '';
@@ -462,56 +494,67 @@
                 }
             }
 
-            // ===== ЗАПРОС К OPENAI =====
-            async function askChatGPT(userMessage) {
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + OPENAI_API_KEY
-                        },
-                        body: JSON.stringify({
-                            model: 'gpt-3.5-turbo',
-                            messages: [
-                                {
-                                    role: 'system',
-                                    content: 'Ты — StradeИИ, дружелюбный и умный ИИ-помощник. Отвечай кратко, но информативно. Если спрашивают как тебя зовут — отвечай, что тебя зовут StradeИИ.'
-                                },
-                                {
-                                    role: 'user',
-                                    content: userMessage
-                                }
-                            ],
-                            temperature: 0.8,
-                            max_tokens: 500
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        console.error('OpenAI ошибка:', errorData);
+            // ===== ЗАПРОС К НЕЙРОСЕТИ (ПЕРЕБОР ВСЕХ ПРОКСИ) =====
+            async function askAI(userMessage) {
+                let lastError = null;
+                
+                for (let i = 0; i < PROXIES.length; i++) {
+                    const proxy = PROXIES[i];
+                    try {
+                        console.log(`Пробуем прокси ${i+1}/${PROXIES.length}: ${proxy.url}`);
                         
-                        if (errorData.error?.code === 'insufficient_quota') {
-                            throw new Error('💰 Недостаточно средств на балансе OpenAI! Пополни баланс.');
-                        }
-                        if (errorData.error?.message) {
-                            throw new Error(errorData.error.message);
-                        }
-                        throw new Error('Ошибка API (код ' + response.status + ')');
-                    }
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                        
+                        const response = await fetch(proxy.url, {
+                            method: 'POST',
+                            headers: proxy.headers,
+                            body: JSON.stringify({
+                                model: proxy.model,
+                                messages: [
+                                    {
+                                        role: 'system',
+                                        content: 'Ты — StradeИИ, дружелюбный и умный ИИ-помощник. Отвечай кратко, но информативно. Если спрашивают как тебя зовут — отвечай, что тебя зовут StradeИИ. Ты работаешь бесплатно без ограничений.'
+                                    },
+                                    {
+                                        role: 'user',
+                                        content: userMessage
+                                    }
+                                ],
+                                temperature: 0.8,
+                                max_tokens: 500
+                            }),
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
 
-                    const data = await response.json();
-                    return data.choices[0].message.content;
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.warn(`Прокси ${i+1} ошибка ${response.status}:`, errorText.substring(0, 100));
+                            continue;
+                        }
 
-                } catch (error) {
-                    console.error('Ошибка:', error);
-                    
-                    if (error.message.includes('Country') || error.message.includes('region') || error.message.includes('territory')) {
-                        return '⚠️ OpenAI недоступен в вашем регионе. Используйте VPN или другой сервис.';
+                        const data = await response.json();
+                        
+                        if (data.choices && data.choices[0] && data.choices[0].message) {
+                            return data.choices[0].message.content;
+                        } else {
+                            console.warn(`Прокси ${i+1} вернул неожиданный ответ`);
+                            continue;
+                        }
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            console.warn(`Прокси ${i+1} таймаут`);
+                        } else {
+                            console.warn(`Прокси ${i+1} недоступен:`, error.message);
+                        }
+                        lastError = error;
+                        continue;
                     }
-                    return '⚠️ Ошибка нейросети: ' + error.message;
                 }
+                
+                throw new Error('Все API временно недоступны. Попробуйте позже или используйте VPN. (Ошибка: ' + (lastError ? lastError.message : 'неизвестная') + ')');
             }
 
             // ===== ОТПРАВКА =====
@@ -533,10 +576,10 @@
                 showTyping();
 
                 try {
-                    const response = await askChatGPT(text);
+                    const response = await askAI(text);
                     addMessage(response.replace(/\n/g, '<br>'), 'other');
                 } catch (error) {
-                    addMessage('⚠️ Ошибка: ' + error.message, 'other');
+                    addMessage('⚠️ ' + error.message, 'other');
                 } finally {
                     hideTyping();
                     isWaiting = false;
@@ -581,8 +624,9 @@
                 document.body.style.background = '#0f0e1a';
             });
 
-            console.log('🧠 StradeИИ (ChatGPT) запущен!');
+            console.log('🧠 StradeИИ (Нейросеть) запущен!');
             console.log('🔑 Ключей в базе: ' + VALID_KEYS.length);
+            console.log('🌐 Прокси-серверов: ' + PROXIES.length);
 
         })();
     </script>
