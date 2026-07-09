@@ -284,12 +284,53 @@
             margin-left: 10px;
         }
         
+        /* Стили для ввода API-ключа */
+        .api-key-section {
+            margin-top: 8px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .api-key-section input {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 12px;
+            width: 60%;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .api-key-section input:focus {
+            border-color: #667eea;
+            background: rgba(255,255,255,0.1);
+        }
+        .api-key-section input::placeholder {
+            color: rgba(255,255,255,0.3);
+            font-size: 11px;
+        }
+        .api-key-section .api-label {
+            color: rgba(255,255,255,0.3);
+            font-size: 10px;
+            margin-right: 8px;
+            letter-spacing: 1px;
+        }
+        .api-key-section .api-status {
+            color: rgba(255,255,255,0.3);
+            font-size: 10px;
+            margin-left: 8px;
+        }
+        .api-key-section .api-status.active {
+            color: #7fdb7f;
+        }
+        
         @media (max-width: 600px) {
             .messenger { padding: 10px; backdrop-filter: blur(5px); }
             .message { max-width: 90%; font-size: 14px; padding: 10px 14px; }
             .input-area input { padding: 12px 16px; font-size: 14px; }
             .input-area button { padding: 12px 20px; font-size: 13px; }
             .lock-overlay .key-input { width: 90%; }
+            .api-key-section input { width: 80%; }
         }
     </style>
 </head>
@@ -330,6 +371,13 @@
         <div class="input-area">
             <input type="text" id="messageInput" placeholder="Спроси у нейросети..." autofocus disabled>
             <button id="sendBtn" disabled>➤ Отправить</button>
+        </div>
+        
+        <!-- Добавлен ввод API-ключа -->
+        <div class="api-key-section">
+            <span class="api-label">🔑 OpenAI API:</span>
+            <input type="password" id="apiKeyInput" placeholder="Вставь свой OpenAI API-ключ (sk-...)" disabled>
+            <span class="api-status" id="apiStatus">○ не используется</span>
         </div>
         
         <div class="key-status inactive" id="keyStatus">🔑 Статус: ЗАБЛОКИРОВАН</div>
@@ -374,41 +422,15 @@
             ];
 
             // =============================================
-            // 🌐 МНОГО ПРОКСИ (ВСЕ ВОЗМОЖНЫЕ ВАРИАНТЫ)
+            // 🌐 ПРОКСИ И API
             // =============================================
             const PROXIES = [
-                // Llama API
-                {
-                    url: 'https://api.llama-api.com/chat/completions',
-                    model: 'llama-3.1-8b',
-                    headers: { 'Content-Type': 'application/json' }
-                },
-                // Другие бесплатные прокси
-                {
-                    url: 'https://api.g4f.icu/v1/chat/completions',
-                    model: 'gpt-3.5-turbo',
-                    headers: { 'Content-Type': 'application/json' }
-                },
-                {
-                    url: 'https://chatapi.one/v1/chat/completions',
-                    model: 'gpt-3.5-turbo',
-                    headers: { 'Content-Type': 'application/json' }
-                },
-                {
-                    url: 'https://api.aicode.one/v1/chat/completions',
-                    model: 'gpt-3.5-turbo',
-                    headers: { 'Content-Type': 'application/json' }
-                },
-                {
-                    url: 'https://gpt-api.live/v1/chat/completions',
-                    model: 'gpt-3.5-turbo',
-                    headers: { 'Content-Type': 'application/json' }
-                },
-                {
-                    url: 'https://api.chatanywhere.tech/v1/chat/completions',
-                    model: 'gpt-3.5-turbo',
-                    headers: { 'Content-Type': 'application/json' }
-                }
+                'https://api.llama-api.com/chat/completions',
+                'https://api.g4f.icu/v1/chat/completions',
+                'https://chatapi.one/v1/chat/completions',
+                'https://api.aicode.one/v1/chat/completions',
+                'https://gpt-api.live/v1/chat/completions',
+                'https://api.chatanywhere.tech/v1/chat/completions'
             ];
 
             // =============================================
@@ -418,6 +440,8 @@
             let isUnlocked = false;
             let currentKey = localStorage.getItem('strade_key') || null;
             let isWaiting = false;
+            let useOwnApiKey = false;
+            let ownApiKey = localStorage.getItem('openai_api_key') || '';
 
             const messenger = document.getElementById('messenger');
             const lockOverlay = document.getElementById('lockOverlay');
@@ -429,6 +453,16 @@
             const messageInput = document.getElementById('messageInput');
             const sendButton = document.getElementById('sendBtn');
             const typingIndicator = document.getElementById('typingIndicator');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const apiStatus = document.getElementById('apiStatus');
+
+            // Загружаем сохранённый API-ключ
+            if (ownApiKey) {
+                apiKeyInput.value = ownApiKey;
+                useOwnApiKey = true;
+                apiStatus.textContent = '✓ используется';
+                apiStatus.className = 'api-status active';
+            }
 
             function getCurrentTime() {
                 const now = new Date();
@@ -476,11 +510,18 @@
                     messenger.classList.add('unlocked');
                     messageInput.disabled = false;
                     sendButton.disabled = false;
+                    apiKeyInput.disabled = false;
                     keyStatus.textContent = '✅ Статус: АКТИВИРОВАН (ключ: ' + key + ')';
                     keyStatus.className = 'key-status active';
                     
                     clearMessages();
-                    addMessage('🔓 <strong>StradeИИ разблокирован!</strong> 🎉<br><span style="font-size:13px; opacity:0.8;">Привет! Я нейросеть. Спрашивай что угодно! 🤖</span>', 'other');
+                    let msg = '🔓 <strong>StradeИИ разблокирован!</strong> 🎉<br><span style="font-size:13px; opacity:0.8;">Привет! Я нейросеть. Спрашивай что угодно! 🤖</span>';
+                    if (useOwnApiKey) {
+                        msg += '<br><span style="font-size:12px; color:#7fdb7f;">🔑 Используется твой OpenAI API-ключ</span>';
+                    } else {
+                        msg += '<br><span style="font-size:12px; opacity:0.6;">🌐 Используются бесплатные прокси</span>';
+                    }
+                    addMessage(msg, 'other');
                     
                     errorMsg.textContent = '';
                     keyInput.value = '';
@@ -494,27 +535,64 @@
                 }
             }
 
-            // ===== ЗАПРОС К НЕЙРОСЕТИ (ПЕРЕБОР ВСЕХ ПРОКСИ) =====
-            async function askAI(userMessage) {
+            // ===== ОТПРАВКА В OPENAI (свой ключ) =====
+            async function askOpenAI(userMessage) {
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey || !apiKey.startsWith('sk-')) {
+                    throw new Error('Неверный API-ключ. Он должен начинаться с sk-');
+                }
+
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Ты — StradeИИ, дружелюбный и умный ИИ-помощник. Отвечай кратко, но информативно.'
+                            },
+                            {
+                                role: 'user',
+                                content: userMessage
+                            }
+                        ],
+                        temperature: 0.8,
+                        max_tokens: 500
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error('OpenAI ошибка: ' + (error.error?.message || response.status));
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            // ===== ЗАПРОС К ПРОКСИ =====
+            async function askProxy(userMessage) {
                 let lastError = null;
                 
                 for (let i = 0; i < PROXIES.length; i++) {
-                    const proxy = PROXIES[i];
+                    const proxyUrl = PROXIES[i];
                     try {
-                        console.log(`Пробуем прокси ${i+1}/${PROXIES.length}: ${proxy.url}`);
-                        
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 15000);
                         
-                        const response = await fetch(proxy.url, {
+                        const response = await fetch(proxyUrl, {
                             method: 'POST',
-                            headers: proxy.headers,
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                model: proxy.model,
+                                model: 'gpt-3.5-turbo',
                                 messages: [
                                     {
                                         role: 'system',
-                                        content: 'Ты — StradeИИ, дружелюбный и умный ИИ-помощник. Отвечай кратко, но информативно. Если спрашивают как тебя зовут — отвечай, что тебя зовут StradeИИ. Ты работаешь бесплатно без ограничений.'
+                                        content: 'Ты — StradeИИ, дружелюбный и умный ИИ-помощник. Отвечай кратко, но информативно.'
                                     },
                                     {
                                         role: 'user',
@@ -529,32 +607,19 @@
                         
                         clearTimeout(timeoutId);
 
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            console.warn(`Прокси ${i+1} ошибка ${response.status}:`, errorText.substring(0, 100));
-                            continue;
-                        }
+                        if (!response.ok) continue;
 
                         const data = await response.json();
-                        
                         if (data.choices && data.choices[0] && data.choices[0].message) {
                             return data.choices[0].message.content;
-                        } else {
-                            console.warn(`Прокси ${i+1} вернул неожиданный ответ`);
-                            continue;
                         }
                     } catch (error) {
-                        if (error.name === 'AbortError') {
-                            console.warn(`Прокси ${i+1} таймаут`);
-                        } else {
-                            console.warn(`Прокси ${i+1} недоступен:`, error.message);
-                        }
                         lastError = error;
                         continue;
                     }
                 }
                 
-                throw new Error('Все API временно недоступны. Попробуйте позже или используйте VPN. (Ошибка: ' + (lastError ? lastError.message : 'неизвестная') + ')');
+                throw new Error('Все прокси недоступны. Вставь свой OpenAI API-ключ выше!');
             }
 
             // ===== ОТПРАВКА =====
@@ -576,7 +641,24 @@
                 showTyping();
 
                 try {
-                    const response = await askAI(text);
+                    let response;
+                    
+                    // Если есть свой API-ключ — используем его
+                    const apiKey = apiKeyInput.value.trim();
+                    if (apiKey && apiKey.startsWith('sk-')) {
+                        useOwnApiKey = true;
+                        localStorage.setItem('openai_api_key', apiKey);
+                        apiStatus.textContent = '✓ используется';
+                        apiStatus.className = 'api-status active';
+                        response = await askOpenAI(text);
+                    } else {
+                        useOwnApiKey = false;
+                        localStorage.removeItem('openai_api_key');
+                        apiStatus.textContent = '○ не используется';
+                        apiStatus.className = 'api-status';
+                        response = await askProxy(text);
+                    }
+                    
                     addMessage(response.replace(/\n/g, '<br>'), 'other');
                 } catch (error) {
                     addMessage('⚠️ ' + error.message, 'other');
@@ -607,6 +689,23 @@
                 }
             });
 
+            // Сохраняем API-ключ при вводе
+            apiKeyInput.addEventListener('change', function() {
+                const key = this.value.trim();
+                if (key && key.startsWith('sk-')) {
+                    localStorage.setItem('openai_api_key', key);
+                    useOwnApiKey = true;
+                    apiStatus.textContent = '✓ используется';
+                    apiStatus.className = 'api-status active';
+                    addMessage('🔑 OpenAI API-ключ сохранён! Теперь нейросеть работает через официальное API.', 'other');
+                } else {
+                    localStorage.removeItem('openai_api_key');
+                    useOwnApiKey = false;
+                    apiStatus.textContent = '○ не используется';
+                    apiStatus.className = 'api-status';
+                }
+            });
+
             // ===== АВТОВХОД =====
             if (currentKey && validateKey(currentKey)) {
                 unlock(currentKey);
@@ -624,9 +723,8 @@
                 document.body.style.background = '#0f0e1a';
             });
 
-            console.log('🧠 StradeИИ (Нейросеть) запущен!');
-            console.log('🔑 Ключей в базе: ' + VALID_KEYS.length);
-            console.log('🌐 Прокси-серверов: ' + PROXIES.length);
+            console.log('🧠 StradeИИ запущен!');
+            console.log('💡 Вставь свой OpenAI API-ключ для гарантированной работы');
 
         })();
     </script>
